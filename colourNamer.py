@@ -1,81 +1,13 @@
-import random
-import matplotlib.pyplot as plt
-import numpy as np
-
-def randomRGB():
-    r = random.randint(1, 255)
-    g = random.randint(1, 255)
-    b = random.randint(1, 255)
-    return [r,g,b]
-
-
-def RGBToHSL(rgb):
-    if not rgb or len(rgb) != 3:
-        return None
-    
-    # Normalize the RGB values
-    NRGB = [value / 255 for value in rgb]
-
-    # Find extrema
-    maxRGB = max(NRGB)
-    minRGB = min(NRGB)
-
-    # Lightness "L" (color's brightness)
-    L = (maxRGB + minRGB) / 2
-
-    # Saturation "S" (color's purity)
-    if maxRGB == minRGB:
-        S = 0
-    else:
-        if L < 0.5:
-            S = (maxRGB - minRGB) / (maxRGB + minRGB)
-        else:
-            S = (maxRGB - minRGB) / (2.0 - maxRGB - minRGB)
-    
-    # Hue "H" (color itself)
-    if maxRGB == minRGB:
-        H = 0
-    else:
-        if maxRGB == NRGB[0]:
-            H = (NRGB[1] - NRGB[2]) / (maxRGB - minRGB)
-        elif maxRGB == NRGB[1]:
-            H = 2.0 + (NRGB[2] - NRGB[0]) / (maxRGB - minRGB)
-        else:
-            H = 4.0 + (NRGB[0] - NRGB[1]) / (maxRGB - minRGB)
-        
-        H = H * 60
-        if H < 0:
-            H += 360
-
-    # Convert S and L to percentages
-    S *= 100
-    L *= 100
-
-    # Rounding values
-    H = round(H, 2)
-    S = round(S, 2) 
-    L = round(L, 2)
-
-    return [H, S, L]
-
-
-def showColour(rgbValues):
-    hsl = RGBToHSL(rgbValues)
-    name = humanColour(hsl)
-    rgb_array = np.zeros((100, 100, 3), dtype=np.uint8)  # Créer un tableau RGB de 100x100 pixels
-    rgb_array[:,:] = rgbValues  # Remplir le tableau avec la couleur spécifiée
-
-    plt.imshow(rgb_array)
-    plt.axis('off')  # Désactiver les axes
-    plt.title(f'\n name : {name} \n  rgb : {rgbValues} \n  hsl : {hsl}')
-    plt.show()
-
 def humanColour(hslCode):
+    """
+    input : hsl code (list -> [H,S,L])
+    -- H [0,360] (degrees), S [0, 100] (intensity), L [0,100] (intensity)
+    output : A human name corresponding to the colour
+    """
     hue = hslCode[0]
     saturation = hslCode[1]
     lightness = hslCode[2]
 
-    # Determine the main color based on the hue
     if 0 <= hue < 15 or 350 <= hue <= 360:
         colour = 'red'
         if 0 <= saturation < 33:
@@ -289,10 +221,3 @@ def humanColour(hslCode):
         colour = 'unknown colour'
 
     return colour
-
-def rdTest():
-    c = randomRGB()
-    print(f'RGB : {c}')
-    showColour(c)
-
-rdTest()
