@@ -1,11 +1,13 @@
 import numpy as np
 import math
+from blur import *
 import cv2
+import time
 
 """
 Pourquoi valeur négative dans calcul des gradients pas erreur ?
 
--->objectif :  detection d'image similaire si nb de points d'inflexions et intesection verticales et horizontales sur grille
+--> :  detection d'image similaire si nb de points d'inflexions et intesection verticales et horizontales sur grille
 """
 
 def getImage(path):
@@ -13,9 +15,15 @@ def getImage(path):
     return cv2.imread(path)
 
 def greyMatrix(image_matrix):
+    """
+    objectif : Avoir une matrice de 1 valeur par pixel (0,255)
+    """
     return cv2.cvtColor(image_matrix, cv2.COLOR_BGR2GRAY)
 
 def smooth_matrix(matrix):
+    """
+    objectif : Réduire le bruit de l'image
+    """
     return cv2.blur(matrix, (5, 5))
 
 def xyGradients(imageMatrix):
@@ -74,8 +82,11 @@ def xyGradients(imageMatrix):
             grad_x[line, col] = gx
             grad_y[line, col] = gy
 
-            # Calculate angle and Update angle Matrix
-            angles[line, col] = math.atan(gy/gx)
+            # Calculate angle, Update angles matrix
+            # math.atan2 gère la division par 0, si math.atan convient pas,
+            # gérer le cas gx= 0, (l'angle est d'office de 90°, la positivité ou non de dy est celle de l'angle aussi)
+            angles[line, col] = math.atan2(gy, gx)
+    
 
     return grad_x, grad_y, angles
 
@@ -95,27 +106,31 @@ def magnitude(gradientsMatrix_x, gradientsMatrix_y):
     
     return magnitudes
 
-def onlyMaxima(magnitudes, angles):
-    lines = magnitudes.shape[0]
-    columns = magnitudes.shape[1]
-    maxima_only = np.zeros_like(magnitudes, dtype=np.float64)
 
-    return maxima_only
+start = time.time()
 
-image = getImage(r"C:\Users\julienn\Downloads\testImage.png")
-cv2.imwrite('created images/defaultImage.jpg', image)
+image = getImage(r"C:\Users\julienn\Pictures\animals\lobo-gris-mira-camara-1202847530.jpg")
+cv2.imwrite('created images/1_initial.jpg', image)
 
 image = greyMatrix(image)
-cv2.imwrite('created images/greyImage.jpg', image)
+cv2.imwrite('created images/2_grey.jpg', image)
 
-image = smooth_matrix(image)
-cv2.imwrite('created images/smoothImage.jpg', image)
+image = gaussian_blur(image, 15, 5)
+cv2.imwrite('created images/3_blur.jpg', image)
 
-grad_x, grad_y, angles = xyGradients(image)[0], xyGradients(image)[1], xyGradients[2]
-cv2.imwrite('created images/gradients_x.jpg', grad_x)
-cv2.imwrite('created images/gradients_y.jpg', grad_y)
+grad_x, grad_y, angles = xyGradients(image)[0], xyGradients(image)[1], xyGradients(image)[2]
+cv2.imwrite('created images/4_gradients_x.jpg', grad_x)
+cv2.imwrite('created images/5_gradients_y.jpg', grad_y)
 
 mag = magnitude(grad_x, grad_y)
-cv2.imwrite('created images/magnitudes.jpg', mag)
+cv2.imwrite('created images/6_magnitudes.jpg', mag)
 
-print(angles)
+
+"""
+maxima = onlyMaxima(mag, angles)
+cv2.imwrite('created images/maxima.jpg', mag)
+"""
+
+end = time.time()
+
+print(f"Résolu en {end-start} secondes.")
