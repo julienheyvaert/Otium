@@ -191,7 +191,7 @@ def hysteresis(outlined_matrix,threshold_high = 120, threshold_low = 80):
 
     return jungle_matrix
 
-def canny(image, threshold_high = 120, threshold_low = 80, smoothness = (5, 1)):
+def canny(image, threshold_high = 100, threshold_low = 30, smoothness = (5, 1)):
     if(threshold_high < 0 or threshold_high > 255 or threshold_low < 0 or threshold_low > 255 or threshold_low > threshold_high ):
         raise ValueError(f"Invalid thresholds: threshold_high must be between 0 and 255, and threshold_low must be between 0 and 255 and less than or equal to threshold_high. treshold_low : {threshold_low}, treshold_high : {threshold_high}")
     image_g = grayscale_converter(image)
@@ -200,61 +200,13 @@ def canny(image, threshold_high = 120, threshold_low = 80, smoothness = (5, 1)):
     image_o = only_maxima(image_m, image_a)
     return hysteresis(image_o, threshold_high, threshold_low)
 
-
-
-
-def test():
-    start = time.time()
-    
-    image = getImage(r"C:\Users\julienn\Pictures\animals\leopard.jpg")
-    
+def test(image):
     cv2.imwrite('rendered/1_initial.jpg', image)
-    
-    start_step = time.time()
-    image_gray = grayscale_converter(image)
-    cv2.imwrite('rendered/2_grayscale.jpg', image_gray)
-    end = time.time()
-    print(f"-- Grayed in {end - start_step} seconds.")
 
-    start_step = time.time()
-    image_blurred = gaussian_blur(image_gray)
-    cv2.imwrite('rendered/3_blur.jpg', image_blurred)
-    end = time.time()
-    print(f"-- Blured in {end - start_step} seconds.")
+    edges = canny(image)
+    cv2.imwrite('rendered/2_canny.jpg', edges)
 
-    start_step = time.time()
-    grad_x, grad_y, mag, angles = xy_gradients(image_blurred)
-    cv2.imwrite('rendered/4_grad_x.jpg', grad_x)
-    cv2.imwrite('rendered/4_grad_y.jpg', grad_y)
-    cv2.imwrite('rendered/5_magnitudes.jpg', mag)
-    end = time.time()
-    print(f"-- Gradients computed in {end - start_step} seconds.")
+    cv2.imwrite('rendered/3_realCanny.jpg', cv2.Canny(image, 50, 150))
 
-    start_step = time.time()
-    image_outlined = only_maxima(mag, angles)
-    cv2.imwrite('rendered/6_outlined.jpg', image_outlined)
-    end = time.time()
-    print(f"-- Outlined computed in {end - start_step} seconds.")
-
-    start_step = time.time()
-    image_hysteresis = hysteresis(image_outlined)
-    cv2.imwrite('rendered/7_hysteresis.jpg', image_hysteresis)
-    end = time.time()
-    print(f"-- Hysteresis computed in {end - start_step} seconds.")
-
-    start_step = time.time()
-    myCanny = canny(image, 80, 10)
-    cv2.imwrite('rendered/8_myCanny.jpg', myCanny)
-    end = time.time()
-    print(f"-- Canny computed in {end - start_step} seconds.")
-
-    start_step = time.time()
-    realCanny = cv2.Canny(image, 50, 150)
-    cv2.imwrite('rendered/9_realCanny.jpg', realCanny)
-    end = time.time()
-    print(f"-- Real Canny computed in {end - start_step} seconds.")
-
-    end = time.time()
-    print(f"\n ==== Done in {end - start} seconds. ====\n")
-
-    return image_hysteresis
+image = getImage(r"C:\Users\julienn\Pictures\animals\leopard.jpg")
+#test(image)
