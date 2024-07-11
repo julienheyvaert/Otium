@@ -19,7 +19,7 @@ def grayscale_converter(image):
     """
     Input : image np.array, (Blue, green, red)
     Output : image_grayscale np.array (0.11 * blue + 0.59 * green + 0.3 * red)
-    -- colour weight for the human eye
+    -- colour weight for the human eye.
     """
     # Input validity verification
     if len(image.shape) != 3 or image.shape[2] != 3:
@@ -36,8 +36,8 @@ def gen_gaussian_kernel(dim, sd):
     Input : dimension, real number
             sd (standart deviation), real number
     Output : Kernel, np.array
-    -- a square matrix with weights that become weaker the further you are from its centre
-    -- weight distributed according to a Gaussian distribution
+    -- a square matrix with weights that become weaker the further you are from its centre.
+    -- weight distributed according to a Gaussian distribution.
     """
     if dim % 2 == 0:
         dim += 1
@@ -56,7 +56,7 @@ def gen_gaussian_kernel(dim, sd):
     kernel /= np.sum(kernel)
     return kernel
 
-def gaussian_blur(image_matrix, kernel_dim = 10, sd=10):
+def gaussian_blur(image_matrix, kernel_dim = 5, sd=1):
     """
     Input : image_matrix, np.array
             kernel_dim, real number
@@ -64,8 +64,8 @@ def gaussian_blur(image_matrix, kernel_dim = 10, sd=10):
 
     Output : blurred_matrix, np.array
 
-    -- Convolve a Gaussian kernel and the image, 
-    -- Applies a 'summary' of neighbouring pixels to each pixel
+    -- Convolve a Gaussian kernel with the image, 
+    -- Applies a 'summary' of neighbouring pixels to each pixel.
     """
     if kernel_dim >= image_matrix.shape[0] or kernel_dim >= image_matrix.shape[1]:
         print('Invalid kernel.')
@@ -89,11 +89,17 @@ def gaussian_blur(image_matrix, kernel_dim = 10, sd=10):
 
 def xy_gradients(image_matrix):
     """
-    Le but est de calculer un taux de variation autour de chaque pixel dans les directions x et y.
-    On regarde le delta du pixel suivant avec le précédent, en accordant plus d'importance aux pixels voisins directs.
-    --> Convolution avec matrice de Sobel.
-    On regroupe les taux de variations en Magnitudes
-    On calcul leurs orientation
+    Input : image_matrix, a grayscale image matrix, np.array (dim 2)
+    Output: grad_x, grad_y, the gradients in each directions, np.array (dim 2)
+            magnitudes, the matrix of the borders, np.array (dim 2)
+            angles, the matrix of the borders, np.array (dim 2) 
+
+
+    -- The goal is to calculate a rate of change around each pixel in the x and y directions.
+    We look at the delta of the next pixel with the previous one, giving more importance to the direct neighbouring pixels.
+    --> Convolution with Sobel matrix.
+    The rates of change are grouped into Magnitudes (gives positive values and groups the directions).
+    We calculate their orientation in angles.
     """
 
     # SOBEL matrix
@@ -118,6 +124,15 @@ def xy_gradients(image_matrix):
     return grad_x, grad_y, magnitudes, angles
 
 def only_maxima(magnitudes_matrix, angles_matrix):
+    """
+    Input:  magnitudes_matrix, np.array (dim 2)
+            angles_matrix, np.array (dim 2)
+    
+    Output: outline_matrix, the matrix with the weak and isolated borders removed, np.array (dim 2)
+
+    -- Analyses the weakness of the borders, keeping only does who are connected with strong ones 
+    in each 4 directions.
+    """
     rows, cols = angles_matrix.shape
     outline_matrix = np.zeros_like(magnitudes_matrix)
     
@@ -154,10 +169,14 @@ def only_maxima(magnitudes_matrix, angles_matrix):
 
 def hysteresis(outlined_matrix,threshold_high = 120, threshold_low = 80):
     """
-    L'hystérésis permet de suivre les contours en connectant les contours faibles aux contours forts, 
-    mais seulement s'ils sont adjacents à un contour fort. Cela garantit que seuls les contours réels, 
-    qui sont connectés et significatifs, sont retenus, réduisant ainsi les faux positifs dus au bruit.
+    Input:  outline_matrix, matrix of the borders, np.array (dim 2)
+            threshold_high, treshold_low, the gaps where the borders are described as relevant or not, real number (0 - 255)
+
+    Output: jungle_matrix, the matrix where only the relevant borders are keeped, np.array (dim 2)
     """
+
+    if(threshold_high < 0 or threshold_high > 255 or threshold_low < 0 or threshold_low > 255 or threshold_low > threshold_high ):
+        raise ValueError(f"Invalid thresholds: threshold_high must be between 0 and 255, and threshold_low must be between 0 and 255 and less than or equal to threshold_high. treshold_low : {threshold_low}, treshold_high : {threshold_high}")
     rows, cols = outlined_matrix.shape
     jungle_matrix = np.full((rows, cols), 0, dtype=np.uint8)
 
@@ -172,14 +191,17 @@ def hysteresis(outlined_matrix,threshold_high = 120, threshold_low = 80):
 
     return jungle_matrix
 
-def canny(image, treshold_high = 120, treshold_low = 80, smoothness = (10,10)):
+def canny(image, threshold_high = 120, threshold_low = 80, smoothness = (5, 1)):
+    if(threshold_high < 0 or threshold_high > 255 or threshold_low < 0 or threshold_low > 255 or threshold_low > threshold_high ):
+        raise ValueError(f"Invalid thresholds: threshold_high must be between 0 and 255, and threshold_low must be between 0 and 255 and less than or equal to threshold_high. treshold_low : {threshold_low}, treshold_high : {threshold_high}")
     image_g = grayscale_converter(image)
     image_b = gaussian_blur(image_g, smoothness[0], smoothness[1])
-    image_m = xy_gradients(image_b)[2]
-    image_a = xy_gradients(image_b)[3]
+    grad_x, grad_y, image_m, image_a = xy_gradients(image_b)
     image_o = only_maxima(image_m, image_a)
+    return hysteresis(image_o, threshold_high, threshold_low)
 
-    return hysteresis(image_o, treshold_high, treshold_low)
+
+
 
 def test():
     start = time.time()
@@ -195,13 +217,13 @@ def test():
     print(f"-- Grayed in {end - start_step} seconds.")
 
     start_step = time.time()
-    image_blurred = gaussian_blur(image_gray, 10, 10)
+    image_blurred = gaussian_blur(image_gray)
     cv2.imwrite('rendered/3_blur.jpg', image_blurred)
     end = time.time()
     print(f"-- Blured in {end - start_step} seconds.")
 
     start_step = time.time()
-    grad_x, grad_y, mag, angles = xy_gradients(image_gray)
+    grad_x, grad_y, mag, angles = xy_gradients(image_blurred)
     cv2.imwrite('rendered/4_grad_x.jpg', grad_x)
     cv2.imwrite('rendered/4_grad_y.jpg', grad_y)
     cv2.imwrite('rendered/5_magnitudes.jpg', mag)
@@ -221,7 +243,7 @@ def test():
     print(f"-- Hysteresis computed in {end - start_step} seconds.")
 
     start_step = time.time()
-    myCanny = canny(image, 50, 80)
+    myCanny = canny(image, 80, 10)
     cv2.imwrite('rendered/8_myCanny.jpg', myCanny)
     end = time.time()
     print(f"-- Canny computed in {end - start_step} seconds.")
@@ -235,4 +257,4 @@ def test():
     end = time.time()
     print(f"\n ==== Done in {end - start} seconds. ====\n")
 
-test()
+    return image_hysteresis
