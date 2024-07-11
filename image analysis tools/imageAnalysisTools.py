@@ -21,6 +21,17 @@ def grayscale_converter(image):
 
     return image_grayscale
 
+def black_white_converter(image_matrix):
+    if(len(image_matrix.shape == 2 or image_matrix.shape ==3)):
+
+        if(len(image_matrix.shape) == 3):
+            image_matrix = grayscale_converter(image_matrix)
+        black_white_matrix = np.zeros_like(image_matrix, dtype=int)
+        black_white_matrix[np.where(image_matrix > 127)] = 255
+    else:
+        return None
+    return black_white_matrix
+
 def gen_gaussian_kernel(dim, sd):
     """
     Generate a Gaussian kernel

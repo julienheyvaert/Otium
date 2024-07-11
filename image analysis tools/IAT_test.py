@@ -8,9 +8,13 @@ cv2.imwrite('rendered/0_initial.jpg', image)
 image_gray = grayscale_converter(image)
 cv2.imwrite('rendered/1_gray.jpg', image_gray)
 
+# Black and White conversion
+image_b_w = black_white_converter(image)
+cv2.imwrite('rendered/3_blackAndWhite.jpg', image_b_w)
+
 # Gaussian blur
 image_blur = gaussian_blur(image, 10, 3)
-cv2.imwrite('rendered/2_blur.jpg', image_blur)
+cv2.imwrite('rendered/4_blur.jpg', image_blur)
 
 # Canny
 image_gray_blur = gaussian_blur(image_gray)
@@ -28,4 +32,4 @@ hysteresis_matrix = hysteresis(outlined_matrix)
 cv2.imwrite('rendered/Canny_4_hystersis_FINAL_CANNY.jpg', hysteresis_matrix)
 
 # Contours
-cv2.imwrite('rendered/countours.jpg', contour(image))
+cv2.imwrite('rendered/5_countours.jpg', contour(image))
