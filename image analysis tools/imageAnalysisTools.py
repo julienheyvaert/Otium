@@ -13,11 +13,13 @@ def grayscale_converter(image):
     -- colour weight for the human eye.
     """
     # Input validity verification
-    if len(image.shape) != 3 or image.shape[2] != 3:
-        print('Invalid image matrix.')
-        return None
-    
-    image_grayscale = np.dot(image, [0.11, 0.59, 0.3])
+    if len(image.shape) == 3:      
+        image_grayscale = np.dot(image, [0.11, 0.59, 0.3])
+
+    elif len(image.shape) == 2:
+        return image
+    else:
+        raise ValueError('Error in grayscale_convertor. Invalid matrix shape.')
 
     return image_grayscale
 
@@ -29,7 +31,7 @@ def black_white_converter(image_matrix):
         black_white_matrix = np.zeros_like(image_matrix, dtype=int)
         black_white_matrix[np.where(image_matrix > 127)] = 255
     else:
-        return None
+        raise ValueError('black_white_converter takes 2 or 3 dimensionnal matrixes as an input.')
     return black_white_matrix
 
 def gen_gaussian_kernel(dim, sd):
@@ -70,8 +72,7 @@ def gaussian_blur(image_matrix, kernel_dim = 5, sd=1):
     -- Applies a 'summary' of neighbouring pixels to each pixel.
     """
     if kernel_dim >= image_matrix.shape[0] or kernel_dim >= image_matrix.shape[1]:
-        print('Invalid kernel.')
-        return None
+        raise ValueError('Invalid kernel.')
     
     gaussian_kernel = gen_gaussian_kernel(kernel_dim, sd)
     
@@ -205,21 +206,15 @@ def canny(image, threshold_high = 100, threshold_low = 30, smoothness = (5, 1)):
 def contour(image_matrix):
     edge = canny(image_matrix)
     countour_matrix = np.copy(image_matrix)
-    rows, cols, channels = image_matrix.shape
+
+    countour_matrix[np.where(edge > 127)] = [0, 255, 0]
+
 
     if(len(image_matrix.shape) == 3):
-        for row in range(1, rows - 1):
-            for col in range(1, cols - 1):
-                if(edge[row, col] == 255):
-                    # Pixel is an edge
-                    countour_matrix[row, col] = [0, 255, 0]
+        countour_matrix[np.where(edge > 127)] = [0, 255, 0]
 
     elif(len(image_matrix.shape) == 2):
-        for row in range(1, rows - 1):
-            for col in range(1, cols - 1):
-                if(edge[row, col] == 255):
-                    # Pixel is an edge
-                    countour_matrix[row, col] = 255
+        countour_matrix[np.where(edge > 127)] = 255
     
     else:
         raise ValueError('Invalid image_matrix shape.')
