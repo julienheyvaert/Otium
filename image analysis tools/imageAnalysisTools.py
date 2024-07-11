@@ -200,6 +200,29 @@ def canny(image, threshold_high = 100, threshold_low = 30, smoothness = (5, 1)):
     image_o = only_maxima(image_m, image_a)
     return hysteresis(image_o, threshold_high, threshold_low)
 
+def contour(image_matrix, edge):
+    countour_matrix = np.copy(image_matrix)
+    rows, cols, channels = image.shape
+
+    if(len(image_matrix.shape) == 3):
+        for row in range(1, rows - 1):
+            for col in range(1, cols - 1):
+                if(edge[row, col] == 255):
+                    # Pixel is an edge
+                    countour_matrix[row, col] = [0, 255, 255]
+
+    elif(len(image_matrix.shape) == 2):
+        for row in range(1, rows - 1):
+            for col in range(1, cols - 1):
+                if(edge[row, col] == 255):
+                    # Pixel is an edge
+                    countour_matrix[row, col] = 255
+    
+    else:
+        raise ValueError('Invalid image_matrix shape.')
+
+    return countour_matrix
+
 def test(image):
     cv2.imwrite('rendered/1_initial.jpg', image)
 
