@@ -5,7 +5,6 @@ import time
 
 """
 -- Ajouter des bordures avant calcul pour only_maxima
--- Optimiser only_maxima
 """
 
 def getImage(path):
@@ -122,32 +121,33 @@ def only_maxima(magnitudes_matrix, angles_matrix):
     rows, cols = angles_matrix.shape
     outline_matrix = np.zeros_like(magnitudes_matrix)
     
+    angle = angles_matrix % np.pi  # Normalisation des angles entre -pi et pi
+    
+    # Définition des directions (0: horizontal, 1: diag montante, 2: verticale, 3: diag descendante)
+    direction = np.zeros_like(angle, dtype=int)
+    direction[np.where((angle >= -np.pi/8) & (angle < np.pi/8))] = 0
+    direction[np.where((angle >= np.pi/8) & (angle < 3*np.pi/8))] = 1
+    direction[np.where((angle >= 3*np.pi/8) & (angle < 5*np.pi/8))] = 2
+    direction[np.where((angle >= 5*np.pi/8) & (angle < 7*np.pi/8))] = 3
+    direction[np.where((angle >= 7*np.pi/8) & (angle <= np.pi))] = 0
+    direction[np.where((angle >= -7*np.pi/8) & (angle < -5*np.pi/8))] = 0
+    direction[np.where((angle >= -5*np.pi/8) & (angle < -3*np.pi/8))] = 1
+    direction[np.where((angle >= -3*np.pi/8) & (angle < -np.pi/8))] = 3
+
+    # Définir les offsets pour les directions
+    offset = [(-1, 0), (1, 1), (1, 0), (1, -1)]
+    
     for row in range(1, rows - 1):
         for col in range(1, cols - 1):
-            angle = angles_matrix[row, col]
             magnitude = magnitudes_matrix[row, col]
-
-            # Normalisation de l'angle entre -pi et pi
-            angle = angle % np.pi
+            dir_idx = direction[row, col]
+            offset1 = offset[dir_idx]
+            offset2 = (-offset1[0], -offset1[1])
             
-            if (-np.pi / 8 <= angle < np.pi / 8) or (7 * np.pi / 8 <= angle <= np.pi) or (-np.pi <= angle < -7 * np.pi / 8):
-                # Horizontal
-                prev_mag = magnitudes_matrix[row, col - 1]
-                next_mag = magnitudes_matrix[row, col + 1]
-            elif (np.pi / 8 <= angle < 3 * np.pi / 8) or (-7 * np.pi / 8 <= angle < -5 * np.pi / 8):
-                # Up diag
-                prev_mag = magnitudes_matrix[row + 1, col + 1]
-                next_mag = magnitudes_matrix[row - 1, col - 1]
-            elif (3 * np.pi / 8 <= angle < 5 * np.pi / 8) or (-5 * np.pi / 8 <= angle < -3 * np.pi / 8):
-                # Vertical
-                prev_mag = magnitudes_matrix[row - 1, col]
-                next_mag = magnitudes_matrix[row + 1, col]
-            else:
-                # Down diag
-                prev_mag = magnitudes_matrix[row - 1, col + 1]
-                next_mag = magnitudes_matrix[row + 1, col - 1]
+            prev_mag = magnitudes_matrix[row + offset1[0], col + offset1[1]]
+            next_mag = magnitudes_matrix[row + offset2[0], col + offset2[1]]
 
-            if (magnitude >= prev_mag and magnitude >= next_mag):
+            if magnitude >= prev_mag and magnitude >= next_mag:
                 outline_matrix[row, col] = magnitude
 
     return outline_matrix
@@ -184,7 +184,7 @@ def canny(image, treshold_high = 120, treshold_low = 80, smoothness = (10,10)):
 def test():
     start = time.time()
     
-    image = getImage(r"C:\Users\julienn\Pictures\animals\girafe.jpg")
+    image = getImage(r"C:\Users\julienn\Pictures\animals\leopard.jpg")
     
     cv2.imwrite('rendered/1_initial.jpg', image)
     
