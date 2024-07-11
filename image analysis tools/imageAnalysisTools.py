@@ -200,16 +200,17 @@ def canny(image, threshold_high = 100, threshold_low = 30, smoothness = (5, 1)):
     image_o = only_maxima(image_m, image_a)
     return hysteresis(image_o, threshold_high, threshold_low)
 
-def contour(image_matrix, edge):
+def contour(image_matrix):
+    edge = canny(image_matrix)
     countour_matrix = np.copy(image_matrix)
-    rows, cols, channels = image.shape
+    rows, cols, channels = image_matrix.shape
 
     if(len(image_matrix.shape) == 3):
         for row in range(1, rows - 1):
             for col in range(1, cols - 1):
                 if(edge[row, col] == 255):
                     # Pixel is an edge
-                    countour_matrix[row, col] = [0, 255, 255]
+                    countour_matrix[row, col] = [0, 255, 0]
 
     elif(len(image_matrix.shape) == 2):
         for row in range(1, rows - 1):
@@ -222,14 +223,3 @@ def contour(image_matrix, edge):
         raise ValueError('Invalid image_matrix shape.')
 
     return countour_matrix
-
-def test(image):
-    cv2.imwrite('rendered/1_initial.jpg', image)
-
-    edges = canny(image)
-    cv2.imwrite('rendered/2_canny.jpg', edges)
-
-    cv2.imwrite('rendered/3_realCanny.jpg', cv2.Canny(image, 50, 150))
-
-image = getImage(r"C:\Users\julienn\Pictures\animals\leopard.jpg")
-#test(image)
