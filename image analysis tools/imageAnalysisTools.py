@@ -22,7 +22,7 @@ def grayscale_converter(image):
     return image_grayscale
 
 def black_white_converter(image_matrix):
-    if(len(image_matrix.shape == 2 or image_matrix.shape ==3)):
+    if(len(image_matrix.shape) == 2 or len(image_matrix.shape) ==3):
 
         if(len(image_matrix.shape) == 3):
             image_matrix = grayscale_converter(image_matrix)
