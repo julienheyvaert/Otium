@@ -6,15 +6,6 @@ import time
 """
 -- Ajouter des bordures avant calcul pour only_maxima
 """
-
-def getImage(path):
-    path = path.replace("\\", "/")
-    image = cv2.imread(path)
-    if image is None:
-        print(f"Error: Could not load image from {path}")
-        return None
-    return image
-
 def grayscale_converter(image):
     """
     Input : image np.array, (Blue, green, red)
