@@ -6,6 +6,7 @@ import time
 """
 -- Ajouter des bordures avant calcul pour only_maxima
 """
+
 def grayscale_converter(image):
     """
     Input : image np.array, (Blue, green, red)
@@ -220,3 +221,17 @@ def contour(image_matrix):
         raise ValueError('Invalid image_matrix shape.')
 
     return countour_matrix
+
+def edges_extrimity_finder(edges_matrix):
+
+    # Border handling
+    edges_matrix = np.pad(edges_matrix, 1, mode='constant')
+    edges_extrimity_matrix = np.zeros_like(edges_matrix)
+    
+    rows, cols = edges_matrix.shape
+    for row in range(1, rows - 1):
+        for col in range(1, cols - 1):
+            sub_matrix = edges_matrix[row-1:row+2, col-1:col+2]
+            if(500 <= np.sum(sub_matrix) <=755):
+                edges_extrimity_matrix[row, col] = 255
+    return edges_extrimity_matrix
