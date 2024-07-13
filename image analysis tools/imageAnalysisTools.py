@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from scipy.ndimage import convolve
 import cv2
 import time
@@ -140,9 +141,9 @@ def only_maxima(magnitudes_matrix, angles_matrix):
     rows, cols = angles_matrix.shape
     outline_matrix = np.zeros_like(magnitudes_matrix)
     
-    angle = angles_matrix % np.pi  # Normalisation des angles entre -pi et pi
+    angle = angles_matrix % np.pi
     
-    # Définition des directions (0: horizontal, 1: diag montante, 2: verticale, 3: diag descendante)
+    # Directions classification
     direction = np.zeros_like(angle, dtype=int)
     direction[np.where((angle >= -np.pi/8) & (angle < np.pi/8))] = 0
     direction[np.where((angle >= np.pi/8) & (angle < 3*np.pi/8))] = 1
@@ -153,7 +154,7 @@ def only_maxima(magnitudes_matrix, angles_matrix):
     direction[np.where((angle >= -5*np.pi/8) & (angle < -3*np.pi/8))] = 1
     direction[np.where((angle >= -3*np.pi/8) & (angle < -np.pi/8))] = 3
 
-    # Définir les offsets pour les directions
+    # List for directions assignement
     offset = [(-1, 0), (1, 1), (1, 0), (1, -1)]
     
     for row in range(1, rows - 1):
@@ -223,6 +224,7 @@ def contour(image_matrix):
     return countour_matrix
 
 def edges_extrimity_finder(edges_matrix):
+    #A AMELIORER AVEC NP.WHERE
 
     # Border handling
     edges_matrix = np.pad(edges_matrix, 1, mode='constant')
@@ -235,3 +237,50 @@ def edges_extrimity_finder(edges_matrix):
             if(500 <= np.sum(sub_matrix) <=755):
                 edges_extrimity_matrix[row, col] = 255
     return edges_extrimity_matrix
+
+def outliner(edges_matrix, threshold, kernel_dim=11):
+    """
+    Verifier si membre d'une chaine avant suppression
+    A retenir : 
+    pixel isolé peut etre très important.
+    """
+    if kernel_dim < 11 or kernel_dim % 2 == 0:
+        raise ValueError('Function error : kernel dim must be an odd int greater than 11.')
+    
+    outlined_matrix = np.copy(edges_matrix)
+
+    border_locations = np.argwhere(edges_matrix == 255)
+    sub_m_radius = kernel_dim // 2
+    window_radius = int(1.1414 * kernel_dim)
+    rows, cols = edges_matrix.shape
+
+    for row, col in border_locations:
+        # Définir les limites de la fenêtre centrée sur le point (row, col)
+        row_min = max(0, row - sub_m_radius)
+        row_max = min(rows, row + sub_m_radius + 1)
+        col_min = max(0, col - sub_m_radius)
+        col_max = min(cols, col + sub_m_radius + 1)
+
+        working_window = edges_matrix[row_min:row_max, col_min:col_max]
+
+        # Diviser la fenêtre en quatre quadrants
+        half_k = working_window.shape[0] // 2
+
+        quarter_top_left = working_window[:half_k, :half_k]
+        quarter_top_right = working_window[:half_k, half_k:]
+        quarter_bottom_left = working_window[half_k:, :half_k]
+        quarter_bottom_right = working_window[half_k:, half_k:]
+
+        # Vérifier le nombre de valeurs 255 dans chaque quadrant
+        count_tl = np.sum(quarter_top_left == 255)
+        count_tr = np.sum(quarter_top_right == 255)
+        count_bl = np.sum(quarter_bottom_left == 255)
+        count_br = np.sum(quarter_bottom_right == 255)
+
+        # Si chaque quadrant a plus de valeurs 255 que le seuil, mettre à jour outlined_matrix
+        if (count_tl > threshold and count_tr > threshold 
+            and count_bl > threshold and count_br > threshold):
+            
+            outlined_matrix[row, col] = 0
+    
+    return outlined_matrix

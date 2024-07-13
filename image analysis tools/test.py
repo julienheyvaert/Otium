@@ -1,4 +1,5 @@
 from imageAnalysisTools import *
+import math
 import time
 
 def outliner(extremity_edge_matrix, track_width, threshold = 50):
@@ -22,19 +23,7 @@ def outliner(extremity_edge_matrix, track_width, threshold = 50):
             track = extremity_edge_matrix[:, col:cols]
     
     return outline_matrix
-    
 
+def delta_rate(x, y):
+    return (math.log10(x) - math.log10(y))**2
 
-# Initial image
-image = cv2.imread("animals/eiffel.jpg")
-cv2.imwrite('rendered/0_initial.jpg', image)
-
-# Canny
-edge_canny = canny(image)
-cv2.imwrite('rendered/1_canny.jpg', edge_canny)
-
-# Continuous Canny
-print('Start.')
-continuous_canny = outliner(edge_canny, 100)
-cv2.imwrite('rendered/2_Continuous_Canny.jpg', continuous_canny)
-print('Done.')

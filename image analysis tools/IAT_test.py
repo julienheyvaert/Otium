@@ -2,10 +2,11 @@ from imageAnalysisTools import *
 import time
 
 # Initial image
-image = cv2.imread("animals/zebre.jpg")
+image = cv2.imread("animals/skyline.jpg")
 cv2.imwrite('rendered/0_initial.jpg', image)
 
 def test(image = image):
+    print('Test launched.')
     # Canny
     start = time.time()
     canny_matrix = canny(image)
@@ -14,12 +15,20 @@ def test(image = image):
     print(f"-- Canny computed in {end - start} seconds.")
 
     # Extrimities
+    """
     start = time.time()
     extrimities = edges_extrimity_finder(canny_matrix)
     cv2.imwrite('rendered/2_Extrimities.jpg', extrimities)
     end = time.time()
     print(f"-- Extrimities computed in {end - start} seconds.")
+    """
 
+    # Outliner
+    start = time.time()
+    outlined_matrix = outliner(canny_matrix,15, 31)
+    cv2.imwrite(f'rendered/2_Outlined.jpg', outlined_matrix)
+    end = time.time()
+    print(f"-- Outliner computed in {end - start} seconds.")
 
 def test_all():
     # Gray conversion
@@ -55,35 +64,36 @@ def test_all():
     cv2.imwrite('rendered/Canny_1_grad_y.jpg', grad_y)
     cv2.imwrite('rendered/Canny_2_magnitudes.jpg', magnitudes)
     end = time.time()
-    print(f"-- gradients, magnitudes, angles computed in {end - start} seconds.")
+    print(f"-- -- gradients, magnitudes, angles computed in {end - start} seconds.")
 
     start = time.time()
     outlined_matrix = only_maxima(magnitudes, angles)
     cv2.imwrite('rendered/Canny_3_maxima.jpg', outlined_matrix)
     end = time.time()
-    print(f"-- Outlined in {end - start} seconds.")
+    print(f"-- -- Maximas in {end - start} seconds.")
 
     start = time.time()
     hysteresis_matrix = hysteresis(outlined_matrix)
     cv2.imwrite('rendered/Canny_4_hystersis_FINAL_CANNY.jpg', hysteresis_matrix)
     end = time.time()
-    print(f"-- Hysteresis computed in {end - start} seconds.")
+    print(f"-- -- Hysteresis computed in {end - start} seconds.")
 
     end_canny = time.time()
     print(f"-- Canny algorithm computed in {end_canny - start_canny} seconds.")
 
-    # Extrimity finder
+    # Outliner
     start = time.time()
-    extrimities = edges_extrimity_finder(hysteresis_matrix)
-    cv2.imwrite('rendered/Canny_5_Extrimities.jpg', extrimities)
+    outlined_matrix = outliner(hysteresis_matrix,15, 31)
+    cv2.imwrite(f'rendered/Z_0_Outlined.jpg', outlined_matrix)
     end = time.time()
-    print(f"-- Extrimities computed in {end - start} seconds.")
+    print(f"-- Outliner computed in {end - start} seconds.")
 
     # Contours
     start = time.time()
-    canny = contour(image)
-    cv2.imwrite('rendered/Z_10_countours.jpg', canny)
+    contour_matrix = contour(image)
+    cv2.imwrite('rendered/Z_10_countours.jpg', contour_matrix)
     end = time.time()
     print(f"-- Contours drawed in {end - start} seconds.")
 
+    print(len(np.where(outlined_matrix == 255)[0]))
 test_all()
