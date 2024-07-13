@@ -2,7 +2,7 @@ from imageAnalysisTools import *
 import time
 
 # Initial image
-image = cv2.imread("animals/skyline.jpg")
+image = cv2.imread("animals/zebre.jpg")
 cv2.imwrite('rendered/0_initial.jpg', image)
 
 def test(image = image):
@@ -95,5 +95,4 @@ def test_all():
     end = time.time()
     print(f"-- Contours drawed in {end - start} seconds.")
 
-    print(len(np.where(outlined_matrix == 255)[0]))
 test_all()
