@@ -1,12 +1,5 @@
 import numpy as np
-import math
 from scipy.ndimage import convolve
-import cv2
-import time
-
-"""
--- Ajouter des bordures avant calcul pour only_maxima
-"""
 
 def grayscale_converter(image):
     """
@@ -25,70 +18,62 @@ def grayscale_converter(image):
 
     return image_grayscale
 
+def binary_reverse(edges_matrix):
+    return 255 - edges_matrix
+
 def black_white_converter(image_matrix):
-    if(len(image_matrix.shape) == 2 or len(image_matrix.shape) ==3):
-
-        if(len(image_matrix.shape) == 3):
-            image_matrix = grayscale_converter(image_matrix)
-        black_white_matrix = np.zeros_like(image_matrix, dtype=int)
-        black_white_matrix[np.where(image_matrix > 127)] = 255
+    if image_matrix.ndim == 3:
+        image_matrix = grayscale_converter(image_matrix)
     else:
-        raise ValueError('black_white_converter takes 2 or 3 dimensionnal matrixes as an input.')
-    return black_white_matrix
+        if(image_matrix.ndim != 2):
+            raise ValueError('black_white_converter error : image_matrix must have 3 dimensions')
+    return np.where(image_matrix > 127, 255, 0).astype(int)
 
-def gen_gaussian_kernel(dim, sd):
+def gen_gaussian_kernel_1d(kernel_dim= 10, sd = 5):
     """
-    Generate a Gaussian kernel
-    Input : dimension, real number
-            sd (standart deviation), real number
-    Output : Kernel, np.array
-    -- a square matrix with weights that become weaker the further you are from its centre.
-    -- weight distributed according to a Gaussian distribution.
+    Generate a 1D Gaussian kernel.
     """
-    if dim % 2 == 0:
-        dim += 1
-    if dim < 3:
-        dim = 3
+    if kernel_dim % 2 == 0:
+        kernel_dim += 1
+    if kernel_dim < 3:
+        kernel_dim = 3
 
-    kernel = np.zeros((dim, dim), dtype=np.float32)
-    center = dim // 2
+    center = kernel_dim // 2
+    x = np.arange(-center, center + 1)
+    kernel_1d = np.exp(-0.5 * (x / sd) ** 2)
+    kernel_1d /= np.sum(kernel_1d)
 
-    for line in range(dim):
-        for col in range(dim):
-            x = line - center
-            y = col - center
-            kernel[line, col] = np.exp(-(x**2 + y**2) / (2 * sd**2))
+    return kernel_1d
 
-    kernel /= np.sum(kernel)
-    return kernel
-
-def gaussian_blur(image_matrix, kernel_dim = 5, sd=1):
+def gaussian_blur(image_matrix, kernel_dim=5, sd=1):
     """
     Input : image_matrix, np.array
-            kernel_dim, real number
-            sd (standart deviation), real number
+            kernel_dim, int
+            sd (standard deviation), real number
 
     Output : blurred_matrix, np.array
 
-    -- Convolve a Gaussian kernel with the image, 
+    -- Convolve a Gaussian kernel with the image,
     -- Applies a 'summary' of neighbouring pixels to each pixel.
     """
     if kernel_dim >= image_matrix.shape[0] or kernel_dim >= image_matrix.shape[1]:
-        raise ValueError('Invalid kernel.')
-    
-    gaussian_kernel = gen_gaussian_kernel(kernel_dim, sd)
-    
-    if len(image_matrix.shape) == 2:
-        # image is in grayscale
-        blurred_matrix = convolve(image_matrix, gaussian_kernel, mode='reflect')
+        raise ValueError('Invalid kernel dimension.')
 
-    elif len(image_matrix.shape) == 3:  
+    gaussian_kernel_1d = gen_gaussian_kernel_1d(kernel_dim, sd)
+
+    if image_matrix.ndim == 2:
+        # Image is in grayscale
+        blurred_matrix = convolve(image_matrix, gaussian_kernel_1d[:, None], mode='reflect')
+        blurred_matrix = convolve(blurred_matrix, gaussian_kernel_1d[None, :], mode='reflect')
+
+    elif image_matrix.ndim == 3:
         # Image is in BGR
         blurred_matrix = np.zeros_like(image_matrix)
         for channel in range(image_matrix.shape[2]):
-            blurred_matrix[:, :, channel] = convolve(image_matrix[:, :, channel], gaussian_kernel, mode='reflect')
+            blurred_channel = convolve(image_matrix[:, :, channel], gaussian_kernel_1d[:, None], mode='reflect')
+            blurred_matrix[:, :, channel] = convolve(blurred_channel, gaussian_kernel_1d[None, :], mode='reflect')
     else:
-        return None
+        raise ValueError('Invalid image_matrix shape.')
 
     return blurred_matrix
 
@@ -124,11 +109,11 @@ def xy_gradients(image_matrix):
     angles = np.arctan2(grad_y, grad_x)
 
     # Calculate Magnitudes
-    magnitudes = np.sqrt(np.square(grad_x) + np.square(grad_y))
+    magnitudes = np.hypot(grad_x, grad_y)
 
     return grad_x, grad_y, magnitudes, angles
 
-def only_maxima(magnitudes_matrix, angles_matrix):
+def only_maxima_BU(magnitudes_matrix, angles_matrix):
     """
     Input:  magnitudes_matrix, np.array (dim 2)
             angles_matrix, np.array (dim 2)
@@ -139,9 +124,9 @@ def only_maxima(magnitudes_matrix, angles_matrix):
     in each 4 directions.
     """
     rows, cols = angles_matrix.shape
-    outline_matrix = np.zeros_like(magnitudes_matrix)
-    
     angle = angles_matrix % np.pi
+    padded_magnitudes = np.pad(magnitudes_matrix, 1, mode='constant')
+    max_by_dir_matrix = np.zeros_like(magnitudes_matrix)
     
     # Directions classification
     direction = np.zeros_like(angle, dtype=int)
@@ -155,20 +140,62 @@ def only_maxima(magnitudes_matrix, angles_matrix):
     direction[np.where((angle >= -3*np.pi/8) & (angle < -np.pi/8))] = 3
 
     # List for directions assignement
-    offset = [(-1, 0), (1, 1), (1, 0), (1, -1)]
+    direction_vector = [(-1, 0), (1, 1), (1, 0), (1, -1)]
     
     for row in range(1, rows - 1):
         for col in range(1, cols - 1):
-            magnitude = magnitudes_matrix[row, col]
+            magnitude = padded_magnitudes[row, col]
             dir_idx = direction[row, col]
-            offset1 = offset[dir_idx]
-            offset2 = (-offset1[0], -offset1[1])
+            dir_prev = direction_vector[dir_idx]
+            dir_next = (-dir_prev[0], -dir_prev[1])
             
-            prev_mag = magnitudes_matrix[row + offset1[0], col + offset1[1]]
-            next_mag = magnitudes_matrix[row + offset2[0], col + offset2[1]]
+            prev_mag = padded_magnitudes[row + dir_prev[0], col + dir_prev[1]]
+            next_mag = padded_magnitudes[row + dir_next[0], col + dir_next[1]]
 
             if magnitude >= prev_mag and magnitude >= next_mag:
-                outline_matrix[row, col] = magnitude
+                max_by_dir_matrix[row, col] = magnitude
+
+    return max_by_dir_matrix
+
+def only_maxima(magnitudes_matrix, angles_matrix):
+    """
+    Input:  magnitudes_matrix, np.array (dim 2)
+            angles_matrix, np.array (dim 2)
+    
+    Output: outline_matrix, the matrix with the weak and isolated borders removed, np.array (dim 2)
+
+    -- Analyses the weakness of the borders, keeping only those connected with strong ones in each of the 4 directions.
+    """
+    rows, cols = angles_matrix.shape
+    angle = angles_matrix % np.pi
+
+    # Directions classification
+    direction = np.zeros_like(angle, dtype=int)
+    direction[(angle >= -np.pi/8) & (angle < np.pi/8)] = 0
+    direction[(angle >= np.pi/8) & (angle < 3*np.pi/8)] = 1
+    direction[(angle >= 3*np.pi/8) & (angle < 5*np.pi/8)] = 2
+    direction[(angle >= 5*np.pi/8) & (angle < 7*np.pi/8)] = 3
+    direction[(angle >= 7*np.pi/8) & (angle <= np.pi)] = 0
+    direction[(angle >= -7*np.pi/8) & (angle < -5*np.pi/8)] = 0
+    direction[(angle >= -5*np.pi/8) & (angle < -3*np.pi/8)] = 1
+    direction[(angle >= -3*np.pi/8) & (angle < -np.pi/8)] = 3
+
+    # Offsets for the directions
+    direction_vector = [(-1, 0), (-1, 1), (0, 1), (1, 1), 
+                        (1, 0), (1, -1), (0, -1), (-1, -1)]
+
+    outline_matrix = np.zeros_like(magnitudes_matrix)
+
+    for i, (dx, dy) in enumerate(direction_vector[:4]):
+        shifted_magnitude_1 = np.roll(magnitudes_matrix, dx, axis=0)
+        shifted_magnitude_1 = np.roll(shifted_magnitude_1, dy, axis=1)
+        shifted_magnitude_2 = np.roll(magnitudes_matrix, -dx, axis=0)
+        shifted_magnitude_2 = np.roll(shifted_magnitude_2, -dy, axis=1)
+        
+        mask = (direction == i)
+        mask &= (magnitudes_matrix >= shifted_magnitude_1) & (magnitudes_matrix >= shifted_magnitude_2)
+        
+        outline_matrix[mask] = magnitudes_matrix[mask]
 
     return outline_matrix
 
@@ -180,66 +207,41 @@ def hysteresis(outlined_matrix,threshold_high = 120, threshold_low = 80):
     Output: jungle_matrix, the matrix where only the relevant borders are keeped, np.array (dim 2)
     """
 
-    if(threshold_high < 0 or threshold_high > 255 or threshold_low < 0 or threshold_low > 255 or threshold_low > threshold_high ):
-        raise ValueError(f"Invalid thresholds: threshold_high must be between 0 and 255, and threshold_low must be between 0 and 255 and less than or equal to threshold_high. treshold_low : {threshold_low}, treshold_high : {threshold_high}")
+    if not (0 <= threshold_low <= threshold_high <= 255):
+        raise ValueError(f"Invalid thresholds ([0,255], treshold_high <= treshold_low)")
+    
     rows, cols = outlined_matrix.shape
-    jungle_matrix = np.full((rows, cols), 0, dtype=np.uint8)
+    jungle_matrix = np.zeros_like(outlined_matrix, dtype=np.uint8)
 
-    strong_r, strong_c = np.where(outlined_matrix >= threshold_high)
-    weak_r, weak_c = np.where((outlined_matrix >= threshold_low) & (outlined_matrix < threshold_high))
+    strong = np.where(outlined_matrix >= threshold_high)
+    weak = np.where((outlined_matrix >= threshold_low) & (outlined_matrix < threshold_high))
 
-    jungle_matrix[strong_r, strong_c] = 255
+    jungle_matrix[strong[0], strong[1]] = 255
 
-    for i, j in zip(weak_r, weak_c):
-        if (jungle_matrix[i-1:i+2, j-1:j+2] == 255).any():
-            jungle_matrix[i, j] = 255
+    for weak_pixel_index in range(len(weak)):
+        weak_pixel = weak[weak_pixel_index]
+        row = weak_pixel[0]
+        col = weak_pixel[1]
+
+        if (jungle_matrix[row-1:row+2, col-1:col+2] == 255).any():
+            jungle_matrix[row, col] = 255
 
     return jungle_matrix
 
-def canny(image, threshold_high = 100, threshold_low = 30, smoothness = (5, 1)):
-    if(threshold_high < 0 or threshold_high > 255 or threshold_low < 0 or threshold_low > 255 or threshold_low > threshold_high ):
-        raise ValueError(f"Invalid thresholds: threshold_high must be between 0 and 255, and threshold_low must be between 0 and 255 and less than or equal to threshold_high. treshold_low : {threshold_low}, treshold_high : {threshold_high}")
+def canny(image, threshold_high = 100, threshold_low = 30, gaussian_kernel_dim = (5, 1)):
+    if not (0 <= threshold_low <= threshold_high <= 255):
+        raise ValueError(f"Invalid thresholds.")
+    
     image_g = grayscale_converter(image)
-    image_b = gaussian_blur(image_g, smoothness[0], smoothness[1])
-    grad_x, grad_y, image_m, image_a = xy_gradients(image_b)
+    image_b = gaussian_blur(image_g, gaussian_kernel_dim[0], gaussian_kernel_dim[1])
+    _, _, image_m, image_a = xy_gradients(image_b)
     image_o = only_maxima(image_m, image_a)
+
     return hysteresis(image_o, threshold_high, threshold_low)
 
-def contour(image_matrix):
-    edge = canny(image_matrix)
-    countour_matrix = np.copy(image_matrix)
-
-    countour_matrix[np.where(edge > 127)] = [0, 255, 0]
-
-
-    if(len(image_matrix.shape) == 3):
-        countour_matrix[np.where(edge > 127)] = [0, 255, 0]
-
-    elif(len(image_matrix.shape) == 2):
-        countour_matrix[np.where(edge > 127)] = 255
-    
-    else:
-        raise ValueError('Invalid image_matrix shape.')
-
-    return countour_matrix
-
-def edges_extrimity_finder(edges_matrix):
-    #A AMELIORER AVEC NP.WHERE
-
-    # Border handling
-    edges_matrix = np.pad(edges_matrix, 1, mode='constant')
-    edges_extrimity_matrix = np.zeros_like(edges_matrix)
-    
-    rows, cols = edges_matrix.shape
-    for row in range(1, rows - 1):
-        for col in range(1, cols - 1):
-            sub_matrix = edges_matrix[row-1:row+2, col-1:col+2]
-            if(500 <= np.sum(sub_matrix) <=755):
-                edges_extrimity_matrix[row, col] = 255
-    return edges_extrimity_matrix
-
-def outliner(edges_matrix, threshold, kernel_dim=11):
+def outliner(edges_matrix, threshold = 15, kernel_dim= 31):
     """
+    treshold = nombre de pixels admis par quadrant de kernel
     Verifier si membre d'une chaine avant suppression
     A retenir : 
     pixel isolé peut etre très important.
@@ -247,15 +249,13 @@ def outliner(edges_matrix, threshold, kernel_dim=11):
     if kernel_dim < 11 or kernel_dim % 2 == 0:
         raise ValueError('Function error : kernel dim must be an odd int greater than 11.')
     
+    sub_m_radius = kernel_dim // 2
+    rows, cols = edges_matrix.shape
     outlined_matrix = np.copy(edges_matrix)
 
     border_locations = np.argwhere(edges_matrix == 255)
-    sub_m_radius = kernel_dim // 2
-    window_radius = int(1.1414 * kernel_dim)
-    rows, cols = edges_matrix.shape
 
     for row, col in border_locations:
-        # Définir les limites de la fenêtre centrée sur le point (row, col)
         row_min = max(0, row - sub_m_radius)
         row_max = min(rows, row + sub_m_radius + 1)
         col_min = max(0, col - sub_m_radius)
@@ -263,24 +263,50 @@ def outliner(edges_matrix, threshold, kernel_dim=11):
 
         working_window = edges_matrix[row_min:row_max, col_min:col_max]
 
-        # Diviser la fenêtre en quatre quadrants
-        half_k = working_window.shape[0] // 2
+        kernel_radius = working_window.shape[0] // 2
 
-        quarter_top_left = working_window[:half_k, :half_k]
-        quarter_top_right = working_window[:half_k, half_k:]
-        quarter_bottom_left = working_window[half_k:, :half_k]
-        quarter_bottom_right = working_window[half_k:, half_k:]
+        quarter_top_left = working_window[:kernel_radius, :kernel_radius]
+        quarter_top_right = working_window[:kernel_radius, kernel_radius:]
+        quarter_bottom_left = working_window[kernel_radius:, :kernel_radius]
+        quarter_bottom_right = working_window[kernel_radius:, kernel_radius:]
 
-        # Vérifier le nombre de valeurs 255 dans chaque quadrant
+        # Count the pixels by quarter
         count_tl = np.sum(quarter_top_left == 255)
         count_tr = np.sum(quarter_top_right == 255)
         count_bl = np.sum(quarter_bottom_left == 255)
         count_br = np.sum(quarter_bottom_right == 255)
 
-        # Si chaque quadrant a plus de valeurs 255 que le seuil, mettre à jour outlined_matrix
+        # If all quarters are exceed the treshold, delete the pixel
         if (count_tl > threshold and count_tr > threshold 
             and count_bl > threshold and count_br > threshold):
             
             outlined_matrix[row, col] = 0
     
     return outlined_matrix
+
+def contour(image_matrix, edges_matrix = None):
+    if not edges_matrix:
+        edges_matrix = canny(image_matrix)
+
+    contour_matrix = np.copy(image_matrix)
+
+    if image_matrix.ndim == 3:
+        contour_matrix[edges_matrix > 127] = [0, 255, 0]
+    elif image_matrix.ndim == 2:
+        contour_matrix[edges_matrix > 127] = 0
+    else:
+        raise ValueError('Invalid image_matrix shape.')
+
+    return contour_matrix
+
+def edges_extrimity_finder(edges_matrix):
+    padded_matrix = np.pad(edges_matrix, 1, mode='constant')
+    rows, cols = padded_matrix.shape
+    edges_extrimity_matrix = np.zeros_like(padded_matrix)
+    
+    for row in range(1, rows - 1):
+        for col in range(1, cols - 1):
+            sub_matrix = edges_matrix[row-1:row+2, col-1:col+2]
+            if(500 <= np.sum(sub_matrix) <=755):
+                edges_extrimity_matrix[row, col] = 255
+    return edges_extrimity_matrix
