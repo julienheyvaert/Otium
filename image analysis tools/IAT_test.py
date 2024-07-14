@@ -1,4 +1,5 @@
 from imageAnalysisTools import *
+import cv2
 import time
 
 # Initial image
