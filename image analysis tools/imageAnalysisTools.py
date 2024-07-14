@@ -113,7 +113,7 @@ def xy_gradients(image_matrix):
 
     return grad_x, grad_y, magnitudes, angles
 
-def only_maxima_BU(magnitudes_matrix, angles_matrix):
+def only_maxima(magnitudes_matrix, angles_matrix):
     """
     Input:  magnitudes_matrix, np.array (dim 2)
             angles_matrix, np.array (dim 2)
@@ -157,47 +157,6 @@ def only_maxima_BU(magnitudes_matrix, angles_matrix):
 
     return max_by_dir_matrix
 
-def only_maxima(magnitudes_matrix, angles_matrix):
-    """
-    Input:  magnitudes_matrix, np.array (dim 2)
-            angles_matrix, np.array (dim 2)
-    
-    Output: outline_matrix, the matrix with the weak and isolated borders removed, np.array (dim 2)
-
-    -- Analyses the weakness of the borders, keeping only those connected with strong ones in each of the 4 directions.
-    """
-    rows, cols = angles_matrix.shape
-    angle = angles_matrix % np.pi
-
-    # Directions classification
-    direction = np.zeros_like(angle, dtype=int)
-    direction[(angle >= -np.pi/8) & (angle < np.pi/8)] = 0
-    direction[(angle >= np.pi/8) & (angle < 3*np.pi/8)] = 1
-    direction[(angle >= 3*np.pi/8) & (angle < 5*np.pi/8)] = 2
-    direction[(angle >= 5*np.pi/8) & (angle < 7*np.pi/8)] = 3
-    direction[(angle >= 7*np.pi/8) & (angle <= np.pi)] = 0
-    direction[(angle >= -7*np.pi/8) & (angle < -5*np.pi/8)] = 0
-    direction[(angle >= -5*np.pi/8) & (angle < -3*np.pi/8)] = 1
-    direction[(angle >= -3*np.pi/8) & (angle < -np.pi/8)] = 3
-
-    # Offsets for the directions
-    direction_vector = [(-1, 0), (-1, 1), (0, 1), (1, 1), 
-                        (1, 0), (1, -1), (0, -1), (-1, -1)]
-
-    outline_matrix = np.zeros_like(magnitudes_matrix)
-
-    for i, (dx, dy) in enumerate(direction_vector[:4]):
-        shifted_magnitude_1 = np.roll(magnitudes_matrix, dx, axis=0)
-        shifted_magnitude_1 = np.roll(shifted_magnitude_1, dy, axis=1)
-        shifted_magnitude_2 = np.roll(magnitudes_matrix, -dx, axis=0)
-        shifted_magnitude_2 = np.roll(shifted_magnitude_2, -dy, axis=1)
-        
-        mask = (direction == i)
-        mask &= (magnitudes_matrix >= shifted_magnitude_1) & (magnitudes_matrix >= shifted_magnitude_2)
-        
-        outline_matrix[mask] = magnitudes_matrix[mask]
-
-    return outline_matrix
 
 def hysteresis(outlined_matrix,threshold_high = 120, threshold_low = 80):
     """
